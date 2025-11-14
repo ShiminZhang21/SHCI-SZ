@@ -1,5 +1,5 @@
 #include <hps/src/hps.h>
-#include <src/det/det.h>
+#include <shci/src/det/det.h>
 #include <iomanip>
 #include <fstream>
 #include <vector>
@@ -53,24 +53,16 @@ public:
 };
 
 int main(int argc, char *argv[]) {
+    bool norb_provided = false; //if not norb privded, use the occupied orbital printout
+    unsigned norbs = 0; // number of orbitals(just give a randum initializaed orbital)
+    std::vector<unsigned> orbs(norbs);//list of orbitals
   //usage:: exe wf_fileanme --threshold 1e-3 to only print coefficient>1e-3
     if (argc < 2) {
         printf("Usage: exe wf_filename\n");
         return 1;
     }
-  //determinant print threshold
-    bool threshold_provided = false;
-    double threshold = 0.0;  // print out threshold
-    bool norb_provided = false; //if not norb privded, use the occupied orbital printout
-    unsigned norbs = 0; // number of orbitals(just give a randum initializaed orbital)
-    std::vector<unsigned> orbs(norbs);//list of orbitals
-
+    //read the input options
     for (int i = 1; i < argc - 1; ++i) {
-      if (std::string(argv[i]) == "--threshold") {
-          threshold = std::stod(argv[i + 1]);  // convert the next argument to double
-          threshold_provided = true;
-          std::cout << "Using threshold: " << threshold << std::endl;
-      }
       if (std::string(argv[i])== "--norbs"){ // number of orbitals
           norbs = std::stod(argv[i + 1]);
           norb_provided = true;
@@ -83,21 +75,21 @@ int main(int argc, char *argv[]) {
           }
           
           // Print the list
-          printf("Orbital list: (make sure you have \"reorder_orbs\": false in config.json) ");
+          printf("Orbital list: ");
           for (unsigned i = 0; i < orbs.size(); ++i) {
               printf("%u ", orbs[i]);
           }
           printf("\n");
-          printf("the order of orbitals are reversed in bitstring (largest orbital on the left)\n");
+          printf("the order of orbitals are reversed in bitstring\n");
           std::reverse(orbs.begin(), orbs.end()); //reverse the orbital order
            
       }
     }
-
+   //read wfc
     std::ifstream serialized_wf(argv[1], std::ios::binary); 
     Wavefunction wf = hps::from_stream<Wavefunction>(serialized_wf);
 
-    //printf("wavefunction coefficent size(number of det): %u\n",wf.coefs[0].size());
+   //printf("wavefunction coefficent size(number of det): %u\n",wf.coefs[0].size());
     //number of states
     int n_states = wf.coefs.size(); // number of states
     int n_det = wf.dets.size(); // number of slater determinants
@@ -106,30 +98,15 @@ int main(int argc, char *argv[]) {
 
     //indices of sorted coefs/dets
     std::vector<size_t> inds(n_det);
-
-
+    //print all det info:
+    n_states=1;//[TEST]
     for (int i_state = 0; i_state < n_states; ++i_state) { // print slater determinants of all states
       printf("===============State %u==================\n",i_state);
       //fill with consecutive ints
       std::iota(inds.begin(), inds.end(), 0); // index of determinant from 0 to n_det
-      //sort by coef magnitude (first wavefunction)
-      std::sort(inds.begin(), inds.end(), [&](const size_t &a, const size_t &b) {
-          return std::abs(wf.coefs[i_state][a]) > std::abs(wf.coefs[i_state][b]);
-      });
-      //print with threshold: 
-      size_t N_cutoff = inds.size();  // Number of det choose
-      if (threshold_provided == true){ //setup threshold    
-        for (size_t i = 0; i < inds.size(); ++i) {
-            double coef = std::abs(wf.coefs[i_state][inds[i]]);
-            if (coef < threshold) {
-                N_cutoff = i;// 2. Find cutoff index: first where coef drops below threshold
-                break;
-            }
-        }
-      }
 
       //print the coefficient of each determinants:
-      for(size_t j = 0; j < N_cutoff; ++j) {
+      for(size_t j = 0; j < n_det; ++j) {
           size_t i = inds[j];  // actual index into wf.coefs and wf.dets
           const Det &det = wf.dets[i];
           std::vector<unsigned> up_orbs(det.up.get_occupied_orbs());
@@ -159,7 +136,19 @@ int main(int argc, char *argv[]) {
                 printf("0");
               }
             }
+            printf(">,");
+            //print in decimal form:
+            printf("In decimal: |");
+            det.up.print();
+            printf(">|");
+            det.dn.print();
             printf(">\n");
+            //print the determinant info:
+            //printf("det up string: ");
+            //det.up.print();
+            //printf("det dn string: ");
+            //det.dn.print();
+            //printf("----------");
           }
           //print in occupied band format if number of orbitals provided
           else{

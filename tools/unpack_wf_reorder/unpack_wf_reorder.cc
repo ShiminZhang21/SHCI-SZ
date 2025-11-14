@@ -1,5 +1,5 @@
 #include <hps/src/hps.h>
-#include <src/det/det.h>
+#include <shci/src/det/det.h>
 #include <iomanip>
 #include <fstream>
 #include <vector>
@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
     bool norb_provided = false; //if not norb privded, use the occupied orbital printout
     unsigned norbs = 0; // number of orbitals(just give a randum initializaed orbital)
     std::vector<unsigned> orbs(norbs);//list of orbitals
+    std::vector<int> new_orbs(norbs); //change the name of the orbitals
 
     for (int i = 1; i < argc - 1; ++i) {
       if (std::string(argv[i]) == "--threshold") {
@@ -83,13 +84,25 @@ int main(int argc, char *argv[]) {
           }
           
           // Print the list
-          printf("Orbital list: (make sure you have \"reorder_orbs\": false in config.json) ");
+          printf("Orbital list: ");
           for (unsigned i = 0; i < orbs.size(); ++i) {
               printf("%u ", orbs[i]);
           }
           printf("\n");
-          printf("the order of orbitals are reversed in bitstring (largest orbital on the left)\n");
-          std::reverse(orbs.begin(), orbs.end()); //reverse the orbital order
+          //the new orbital order is according to the out
+          new_orbs = {8, 0, 1, 3, 2, 4, 5, 6, 7};
+          //for (unsigned orb : orbs) {
+          //    unsigned mapped = (orb == 0) ? norbs - 1 : orb - 1;
+          //    new_orbs.push_back(mapped);
+          //}
+          // Print the list
+          printf("The orbital is reordered by HF energy from shci ");
+          for (unsigned i = 0; i < new_orbs.size(); ++i) {
+              printf("%u ", new_orbs[i]);
+          }
+          printf("\n");
+          //printf("the order of orbitals are reversed in bitstring\n");
+          //std::reverse(new_orbs.begin(), new_orbs.end()); //reverse the orbital order
            
       }
     }
@@ -136,12 +149,12 @@ int main(int argc, char *argv[]) {
           std::vector<unsigned> dn_orbs(det.dn.get_occupied_orbs());
 
           //print coefs of current determinants
-          printf("%16.3e", wf.coefs[i_state][i]);
+          printf("%16.12e", wf.coefs[i_state][i]);
           //print in bit format if number of orbitals provided
           if (norb_provided){
             printf("|");
             //from left to right ordered from largest to smallest orbitals
-            for (unsigned i_orb : orbs){
+            for (unsigned i_orb : new_orbs){
               //printf("iorb=%u \n",i_orb);
               if (std::find(up_orbs.begin(), up_orbs.end(), i_orb) != up_orbs.end()) {
                 printf("1");
@@ -151,7 +164,7 @@ int main(int argc, char *argv[]) {
               }
             }
             printf(">|");
-            for (unsigned i_orb : orbs){
+            for (unsigned i_orb : new_orbs){
               if (std::find(dn_orbs.begin(), dn_orbs.end(), i_orb) != dn_orbs.end()) {
                 printf("1");
               }

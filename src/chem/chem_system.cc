@@ -717,7 +717,7 @@ void ChemSystem::variation_cleanup() {
   energy_var = std::vector<double>(n_states, 0.);
   helper_size = 0;
   dets.clear();
-  dets.shrink_to_fit();
+  dets.shrink_to_fit(); // free the memory
   for (auto& state: coefs) {
     state.clear();
     state.shrink_to_fit();

@@ -25,6 +25,13 @@ int main(int, char* argv[]) {
   MPI_Init(nullptr, nullptr);
 
   if (Parallel::is_master()) print_info(argv[0]);
+  //Mine
+  if (Parallel::is_master()) printf("[TEST] printout with master\n");
+  printf("[TEST] printout without master\n");
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank); //check current rank
+  printf("[TEST]: current rank %d\n", rank);
+  //Mine
 
   Result::init();
   

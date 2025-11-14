@@ -1,13 +1,14 @@
 # Just change SHCI_DIR to the location of the SHCI directory
 SHCI_DIR := ../..
+OBJ_DIR := $(SHCI_DIR)/build_cray #added 
 
 LIB_DIR := $(SHCI_DIR)/lib
 PARENT_DIR := $(SHCI_DIR)/..
-SRC := unpack_wf.cc
+SRC := wfc_proj.cc
 UTIL := $(SHCI_DIR)/src/util.cc
 HDET := $(SHCI_DIR)/src/det/half_det.cc
 
-all : unpack_wf.cc
-	g++ -I$(LIB_DIR) -I$(PARENT_DIR) $(UTIL) $(HDET) $(SRC) -fopenmp -o unpack_wf
+all : wfc_proj.cc
+	g++ -I$(LIB_DIR) -I$(PARENT_DIR) $(UTIL) $(HDET) $(SRC) -fopenmp -o wfc_proj
 clean :
-	$(RM) unpack_wf
+	$(RM) wfc_proj

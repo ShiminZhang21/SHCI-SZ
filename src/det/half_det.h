@@ -5,7 +5,8 @@
 #include <set>
 #include <vector>
 #include "diff_result.h"
-
+#include <bitset>
+//#pragma message(">>> USING THIS half_det.h <<<")//Test string for compiler
 //#define INF_ORBS      // Unlimited norbs, but will use bit representation if norbs <= 64*N_CHUNKS
 #define N_CHUNKS 2
 
@@ -32,6 +33,7 @@ class HalfDet {
   size_t get_hash_value() const;
 
   void print() const;
+  void print_bitstring() const;
 
   template <class B>
   void serialize(B& buf) const;
@@ -40,7 +42,7 @@ class HalfDet {
   void parse(B& buf);
 
  private:
-  std::array<uint64_t, N_CHUNKS> chunks;
+  std::array<uint64_t, N_CHUNKS> chunks; // the chunks store the orbital in bitstring format
 
 #ifdef INF_ORBS
   std::set<unsigned> extras;

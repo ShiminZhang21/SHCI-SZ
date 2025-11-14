@@ -2,6 +2,8 @@
 
 #include "../util.h"
 
+
+
 HalfDet::HalfDet() {
   for (int chunk_id = 0; chunk_id < N_CHUNKS; chunk_id++) {
     chunks[chunk_id] = 0;
@@ -90,7 +92,27 @@ size_t HalfDet::get_hash_value() const {
 
 void HalfDet::print() const {
   for (int chunk_id = N_CHUNKS - 1; chunk_id >= 0; chunk_id--) {
-    printf("%#010lx ", chunks[chunk_id]);
+    //printf("%#010lx ", chunks[chunk_id]); 
+    //print in bit 
+    
+    //std::bitset<64> bits(chunks[chunk_id]); 
+    //std::cout << "\nchunk:" << chunk_id <<"\nIn bit: " << bits << "\nIn decimal:" << chunks[chunk_id];
+    if (chunks[chunk_id]>0){
+      std::cout << chunks[chunk_id]; //in the decimal form
+    }
+  }
+#ifdef INF_ORBS
+  for (unsigned orb : extras) {
+    printf("%u ", orb);
+  }
+#endif
+  //printf("\n");
+}
+
+void HalfDet::print_bitstring() const { //print the chunk into a bitstring
+  for (int chunk_id = N_CHUNKS - 1; chunk_id >= 0; chunk_id--) {
+    //printf("%#010lx ", chunks[chunk_id]); 
+
   }
 #ifdef INF_ORBS
   for (unsigned orb : extras) {

@@ -14,8 +14,14 @@ void Injector::run() {
     Solver<HegSystem>().run();
   } else if (type == "chem") {
     if (Config::get<bool>("optorb", false)) {
+      //Mine
+      if (Parallel::is_master()) printf("[TEST] 'optorb' set to true, Start running optimization_run()'\n");
+      //Mine
       Solver<ChemSystem>().optimization_run();
     } else {
+    //Mine
+    if (Parallel::is_master()) printf("[TEST]'optorb'=flase by default, Start running run()'\n");
+    //Mine
       Solver<ChemSystem>().run();
     }
   } else {

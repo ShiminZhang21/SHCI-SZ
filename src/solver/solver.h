@@ -101,15 +101,22 @@ template <class S>
 void Solver<S>::run() {
   Timer::start("setup");
   std::setlocale(LC_ALL, "en_US.UTF-8");
-  system.setup();
+  //Mine
+  if (Parallel::is_master()) printf("[TEST] setup:  system.setup()\n");
+  //Mine
+  system.setup();//setup the system 
   target_error = Config::get<double>("target_error", 5.0e-5);
   Result::put("energy_hf", system.energy_hf);
   Timer::end();
 
   std::vector<std::vector<size_t>> connections;
 
-  if (!Config::get<bool>("skip_var", false)) {
+  if (!Config::get<bool>("skip_var", false)) { //if don't skip the variation, by default run it
+    //This is the core part: 
     Timer::start("variation");
+    //Mine
+    if (Parallel::is_master()) printf("[TEST] skip_var=true, run_all_variations() \n");
+    //Mine
     run_all_variations();
 
     if (Config::get<bool>("2rdm", false) || Config::get<bool>("get_2rdm_csv", false) ||
@@ -124,7 +131,7 @@ void Solver<S>::run() {
 
   Timer::start("post variation");
 
-  if (Config::get<bool>("hc_server_mode", false)) {
+  if (Config::get<bool>("hc_server_mode", false)) {//by default skip this part
     if (system.time_sym) throw std::invalid_argument("time sym hc server not implemented");
     const auto& wf_filename = get_wf_filename(eps_var_min);
     if (!load_variation_result(wf_filename)) throw std::runtime_error("failed to load wf");
@@ -134,14 +141,16 @@ void Solver<S>::run() {
     return;
   }
 
-  if (Config::get<bool>("get_green", false)) {
+  if (Config::get<bool>("get_green", false)) {//by default skip this part
     if (system.time_sym) throw std::invalid_argument("time sym green not implemented");
     Timer::start("green");
     Green<S> green(system, hamiltonian);
     green.run();
     Timer::end();
   }
-
+  //Mine
+  if (Parallel::is_master()) printf("[TEST] post variation step: system.post_variation(connections)\n");
+  //Mine
   system.post_variation(connections);
   connections.clear();
   connections.shrink_to_fit();
@@ -152,7 +161,7 @@ void Solver<S>::run() {
   Timer::end();
 
   if (Config::get<bool>("var_only", false)) return;
-
+  //This is perturbation part after finish the state diagonalization
   Timer::start("perturbation");
   run_all_perturbations();
   system.post_perturbation();
@@ -351,7 +360,7 @@ void Solver<S>::run_all_variations() {
   for (const double eps_var : eps_vars) {
     Timer::start(Util::str_printf("eps_var=%#.2e", eps_var));
     const auto& filename = get_wf_filename(eps_var);
-    if (Config::get<bool>("force_var", false) || !load_variation_result(filename)) {
+    if (Config::get<bool>("force_var", false) || !load_variation_result(filename)) { //usully enter this loop if variation not computed
       // Perform extra scheduled eps.
       while (it_schedule != eps_vars_schedule.end() && *it_schedule >= eps_var_prev) it_schedule++;
       while (it_schedule != eps_vars_schedule.end() && *it_schedule > eps_var) {
@@ -545,7 +554,7 @@ void Solver<S>::run_perturbation(const double eps_var) {
   double eps_pt_dtm_ratio = 1.0e-1;
   double eps_pt_psto_ratio = 1.0e-2;
   double eps_pt_ratio = 1.0e-3;
-
+  //read variables
   eps_pt_dtm_ratio = Config::get<double>("eps_pt_dtm_ratio", eps_pt_dtm_ratio);
   eps_pt_psto_ratio = Config::get<double>("eps_pt_psto_ratio", eps_pt_psto_ratio);
   eps_pt_ratio = Config::get<double>("eps_pt_ratio", eps_pt_ratio);
@@ -589,11 +598,17 @@ void Solver<S>::run_perturbation(const double eps_var) {
   if (!load_variation_result(var_filename)) {
     throw new std::runtime_error("cannot load variation results");
   }
+  //Mine
+  if (Parallel::is_master()) printf("[TEST] update_diag_helper()\n");
+  //Mine
   system.update_diag_helper();
   if (system.time_sym) system.unpack_time_sym();
 
   // Perform multi stage PT.
-  system.dets.shrink_to_fit();
+  //Mine
+  if (Parallel::is_master()) printf("[TEST] Perform multi stage PT... from system.dets.shrink_to_fit(): \n");
+  //Mine
+  system.dets.shrink_to_fit(); // free the memory
   for (auto& coefs : system.coefs) coefs.shrink_to_fit();
   var_dets.clear_and_shrink();
   var_dets.reserve(system.get_n_dets());
@@ -622,12 +637,24 @@ void Solver<S>::run_perturbation(const double eps_var) {
         "energy_total%s/%#.2e/%#.2e/value", get_state_suffix(i_state).c_str(), eps_var, eps_pt);
     const auto& uncert_entry = Util::str_printf(
         "energy_total%s/%#.2e/%#.2e/uncert", get_state_suffix(i_state).c_str(), eps_var, eps_pt);
+    //Mine
+    if (Parallel::is_master()) printf("[TEST] Start: get_energy_pt_dtm(eps_var, i_state) \n");
+    //Mine
     const double energy_pt_dtm = get_energy_pt_dtm(eps_var, i_state);
+    //Mine
+    if (Parallel::is_master()) printf("[TEST] Start: get_energy_pt_psto(eps_var, i_state, energy_pt_dtm) \n");
+    //Mine
     const UncertResult energy_pt_psto = get_energy_pt_psto(eps_var, i_state, energy_pt_dtm);
+    //Mine
+    if (Parallel::is_master()) printf("[TEST] Start: get_energy_pt_sto(eps_var, i_state, energy_pt_psto) \n");
+    //Mine
     const UncertResult energy_pt = get_energy_pt_sto(eps_var, i_state, energy_pt_psto);
     if (Parallel::is_master()) {
       printf("Total energy: %s Ha (state %d)\n", energy_pt.to_string().c_str(), i_state);
     }
+    //Mine
+    if (Parallel::is_master()) printf("[TEST] DUMP: dump energy_pt.value to result.json \n");
+    //Mine
     Result::put(value_entry, energy_pt.value);
     Result::put(uncert_entry, energy_pt.uncert);
   }
@@ -1320,6 +1347,7 @@ void Solver<S>::print_dets_info() const {
     std::unordered_map<unsigned, double> weights;
     unsigned highest_excitation = 0;
     const auto& det_hf = system.dets[0];
+    //find the excitation level and sum the coefficient within each excitation level
     for (size_t i = 0; i < system.dets.size(); i++) {
       const auto& det = system.dets[i];
       const double coef = system.coefs[i_state][i];
@@ -1343,13 +1371,14 @@ void Solver<S>::print_dets_info() const {
     }
 
     // Print orb occupations.
-    std::vector<double> orb_occupations(system.n_orbs, 0.0);
+        // compute summed occupation for each orbital
+    std::vector<double> orb_occupations(system.n_orbs, 0.0);//initialize
 #pragma omp parallel for schedule(static, 1)
-    for (unsigned j = 0; j < system.n_orbs; j++) {
-      for (size_t i = 0; i < system.dets.size(); i++) {
-        const auto& det = system.dets[i];
-        const double coef = system.coefs[i_state][i];
-        if (det.up.has(j)) {
+    for (unsigned j = 0; j < system.n_orbs; j++) { //j for orbital
+      for (size_t i = 0; i < system.dets.size(); i++) { //i for determinant
+        const auto& det = system.dets[i]; // ith determinant
+        const double coef = system.coefs[i_state][i]; //coefficient of ith determinant
+        if (det.up.has(j)) { //if determinant have orbital j, then orbital occupation + coefficient**2
           orb_occupations[j] += coef * coef;
         }
         if (det.dn.has(j)) {
@@ -1357,9 +1386,11 @@ void Solver<S>::print_dets_info() const {
         }
       }
     }
+        //print the orb occupations
     printf("----------------------------------------\n");
     printf("%-10s%12s%16s\n", "Orbital", "", "Sum c^2");
-    for (unsigned j = 0; j < system.n_orbs && j < 50; j++) {
+    //for (unsigned j = 0; j < system.n_orbs && j < 50; j++) {
+    for (unsigned j = 0; j < system.n_orbs; j++) { //change: print all orbitals
       printf("%-10u%12s%16.8f\n", j, "", orb_occupations[j]);
     }
     double sum_orb_occupation = std::accumulate(orb_occupations.begin(), orb_occupations.end(), 0.0);
@@ -1368,10 +1399,11 @@ void Solver<S>::print_dets_info() const {
     // Print most important dets.
     printf("----------------------------------------\n");
     printf("Most important dets:\n");
-    std::vector<size_t> det_order(system.dets.size());
+    std::vector<size_t> det_order(system.dets.size());//initialize det_order as a zeros list
     for (size_t i = 0; i < system.dets.size(); i++) {
-      det_order[i] = i;
+      det_order[i] = i; // name of the determinant: from 0 to number of determinants
     }
+    //
     const auto& comp = [&](const size_t a, const size_t b) {
       if (std::abs(system.coefs[i_state][a]) != std::abs(system.coefs[i_state][b])) {
         return std::abs(system.coefs[i_state][a]) < std::abs(system.coefs[i_state][b]);
