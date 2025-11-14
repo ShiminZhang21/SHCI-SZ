@@ -28,3 +28,6 @@ pair_contrib*.csv
 *.log
 *.bak
 *.out
+
+# my file
+my_*
