@@ -570,9 +570,24 @@ void Solver<S>::run_perturbation(const double eps_var) {
   if (eps_pt_psto < eps_pt) eps_pt_psto = eps_pt;
   if (eps_pt_dtm < eps_pt_psto) eps_pt_dtm = eps_pt_psto;
 
-  // If results for all states of current eps_var already exist, return.
+  // Determine which states to run PT for.
+  std::vector<unsigned> pt_states = Config::get<std::vector<unsigned>>("pt_states", {});
+  if (pt_states.empty()) {
+    pt_states.resize(system.n_states);
+    std::iota(pt_states.begin(), pt_states.end(), 0);
+  } else {
+    for (const unsigned i_state : pt_states) {
+      if (i_state >= system.n_states) {
+        throw std::runtime_error(
+            Util::str_printf("pt_states contains invalid state index %u (n_states=%u)",
+                             i_state, system.n_states));
+      }
+    }
+  }
+
+  // If results for requested states of current eps_var already exist, return.
   bool missing_pt = false;
-  for (unsigned i_state = 0; i_state < system.n_states; i_state++) {
+  for (const unsigned i_state : pt_states) {
     const auto& value_entry = Util::str_printf(
         "energy_total%s/%#.2e/%#.2e/value", get_state_suffix(i_state).c_str(), eps_var, eps_pt);
     const auto& uncert_entry = Util::str_printf(
@@ -632,7 +647,7 @@ void Solver<S>::run_perturbation(const double eps_var) {
     printf("Memory var: %.1fGB\n", mem_var * 1.0e-9);
     printf("Memory PT limit: %.1fGB\n", pt_mem_avail * 1.0e-9);
   }
-  for (unsigned i_state = 0; i_state < system.n_states; i_state++) {
+  for (const unsigned i_state : pt_states) {
     const auto& value_entry = Util::str_printf(
         "energy_total%s/%#.2e/%#.2e/value", get_state_suffix(i_state).c_str(), eps_var, eps_pt);
     const auto& uncert_entry = Util::str_printf(
