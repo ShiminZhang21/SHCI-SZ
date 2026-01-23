@@ -1,3 +1,10 @@
+# This branch
+This branch from Shimin Zhang include addition features from Arrow code which enable the wavefunction analysis: 
+1. new option "pt_states": [...] in config.json, which do only perturbation step for chosen state number
+2. Wavefunction print out
+3. Wavefunction overlap between states from different active space
+4. Static and dynamic correlation of a SHCI wavefunction
+
 # Arrow  
 
 Semistochastic Heat Bath Configuration Interaction (SHCI) method.
