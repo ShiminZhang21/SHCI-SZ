@@ -377,7 +377,7 @@ LambdaResult Compute_Lambda(
     // Report result (summary)
     // --------------------------
     if (Verbose == true){
-    const int total_classified = count_Gs + count_1e_transfer + count_2e_transfer +
+    const int total_classified = count_Gs + count_1e_transfer + count_e_transter_outside + count_2e_transfer +
                                  count_3e_transfer + count_4e_transfer + count_higher_transfer;
     printf(" A_S target electrons: up=%d, dn=%d\n", n_up_s, n_dn_s);
     printf(" # determinants(in variational space):                %d\n", static_cast<int>(n_det));
