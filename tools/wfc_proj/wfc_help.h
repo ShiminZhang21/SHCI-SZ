@@ -4,6 +4,7 @@
 #include <cstdio>    // printf
 #include <cmath>     // std::abs
 #include <stdexcept> // runtime_error
+#include <unordered_set> // for A_S membership set
 #include <src/det/det.h>
 
 //The wavefunction clss 
@@ -265,15 +266,31 @@ LambdaResult Compute_Lambda(
     const size_t& n_det = wf_l.dets.size(); // number of determinants
     std::vector<int> Ne_S_up(n_det); // number of electrons in in small active space subspace, spin up component
     std::vector<int> Ne_S_dn(n_det); // number of electrons in in small active space subspace, spin dn component
-
-    size_t AS_first = index_map.front();   // first band in A_S
-    size_t AS_last  = index_map.back();    // last band in A_S
-    //reference occupied list: 
-    std::vector<unsigned> reference_occupied_orbitals;
-    reference_occupied_orbitals.reserve(AS_first);  // optional, for efficiency
-    for (unsigned i = 0; i < AS_first; ++i) {
-        reference_occupied_orbitals.push_back(i);
+    if (n_up_s <= 0 || n_up_s > static_cast<int>(index_map.size()) ||
+        n_dn_s <= 0 || n_dn_s > static_cast<int>(index_map.size())) {
+        throw std::runtime_error("n_up_s/n_dn_s out of range for A_S orbital count (n_up_s=0 not yet handled)");
     }
+    const size_t AS_VBM_up = index_map[n_up_s - 1]; //the VBM in up channel [TODO: if VBM not in A_S need to include it from input]
+    const size_t AS_VBM_dn = index_map[n_dn_s - 1]; // the VBM in dn channel 
+    const std::unordered_set<size_t> AS_set(index_map.begin(), index_map.end());
+
+    //size_t AS_first = index_map.front();   // first band in A_S
+    //size_t AS_last  = index_map.back();    // last band in A_S
+
+    // every A_L orbital below that spin's A_S-VBM, excluding A_S's own members --
+    // the fixed reference each determinant's left_*_orbs must match exactly.
+    // Note this is now per-spin (AS_VBM_up vs AS_VBM_dn can differ), where the
+    // original AS_first/AS_last-based reference_occupied_orbitals was shared.
+    std::vector<unsigned> reference_occupied_orbitals_up;
+    for (unsigned i = 0; i < AS_VBM_up; ++i) if (!AS_set.count(i)) reference_occupied_orbitals_up.push_back(i);
+    std::vector<unsigned> reference_occupied_orbitals_dn;
+    for (unsigned i = 0; i < AS_VBM_dn; ++i) if (!AS_set.count(i)) reference_occupied_orbitals_dn.push_back(i);
+    //reference occupied list: 
+    //std::vector<unsigned> reference_occupied_orbitals;
+    //reference_occupied_orbitals.reserve(AS_first);  // optional, for efficiency
+    //for (unsigned i = 0; i < AS_first; ++i) {
+    //    reference_occupied_orbitals.push_back(i);
+    //}
     double Lambda = 0.0f;
     //
     int count_Gs = 0; // number of determinants with projection on determinant of small active space
@@ -302,27 +319,40 @@ LambdaResult Compute_Lambda(
                             std::back_inserter(overlap_list_dn));
 
         //get the list of orbtials bellow the A_S and above A_S:
-        auto n = up_orbs.size();
+        //auto n = up_orbs.size();
 
         // guard against bad indices
-        if (AS_first > n || AS_last >= n) { "Error: A_S is not a sublist of A_L"; }
+        //if (AS_first > n || AS_last >= n) { "Error: A_S is not a sublist of A_L"; }
 
+        // left_up_orbs / right_up_orbs: occupied orbitals below / above AS_VBM_up,
+        // excluding A_S's own members -- replaces the old AS_first/AS_last
+        // positional slice with a value-based filter against the real A_S set.
+        std::vector<unsigned> left_up_orbs, right_up_orbs;
+        for (unsigned v : up_orbs) {
+            if (AS_set.count(v)) continue;
+            (v < AS_VBM_up ? left_up_orbs : right_up_orbs).push_back(v);
+        }
+        std::vector<unsigned> left_dn_orbs, right_dn_orbs;
+        for (unsigned v : dn_orbs) {
+            if (AS_set.count(v)) continue;
+            (v < AS_VBM_dn ? left_dn_orbs : right_dn_orbs).push_back(v);
+        }
         // [0, AS_first)  — excludes AS_first
-        std::vector<unsigned> left_up_orbs(
-            up_orbs.begin(), up_orbs.begin() + AS_first);
+        //std::vector<unsigned> left_up_orbs(
+        //    up_orbs.begin(), up_orbs.begin() + AS_first);
 
         // (AS_last, end) — excludes AS_last
-        std::vector<unsigned> right_up_orbs(
-            (AS_last + 1 <= n) ? up_orbs.begin() + AS_last + 1 : up_orbs.end(),
-            up_orbs.end());
+        //std::vector<unsigned> right_up_orbs(
+        //    (AS_last + 1 <= n) ? up_orbs.begin() + AS_last + 1 : up_orbs.end(),
+        //    up_orbs.end());
 
-        std::vector<unsigned> left_dn_orbs(
-            dn_orbs.begin(), dn_orbs.begin() + AS_first);
+        //std::vector<unsigned> left_dn_orbs(
+        //    dn_orbs.begin(), dn_orbs.begin() + AS_first);
 
         // (AS_last, end) — excludes AS_last
-        std::vector<unsigned> right_dn_orbs(
-            (AS_last + 1 <= n) ? dn_orbs.begin() + AS_last + 1 : dn_orbs.end(),
-            dn_orbs.end());
+        //std::vector<unsigned> right_dn_orbs(
+        //    (AS_last + 1 <= n) ? dn_orbs.begin() + AS_last + 1 : dn_orbs.end(),
+        //    dn_orbs.end());
         //test
             // print them
         //if (Verbose == true){
@@ -346,7 +376,7 @@ LambdaResult Compute_Lambda(
         int e_trans = abs(ne_s_up - n_up_s) + abs(ne_s_dn - n_dn_s); //number of electron exchanged with outside of A_S
         if (e_trans == 0){
             // need all the left occupations are 1, all the right occupations are 0
-            if (left_up_orbs == reference_occupied_orbitals && left_dn_orbs == reference_occupied_orbitals
+            if (left_up_orbs == reference_occupied_orbitals_up && left_dn_orbs == reference_occupied_orbitals_dn
             && right_up_orbs.empty() && right_dn_orbs.empty()){
                 count_Gs += 1; //Count of state without electron transfer
                 Gs_index_map.push_back(j); //record the index of determinant belong to G_S
